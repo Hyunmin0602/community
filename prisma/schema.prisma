@@ -1,0 +1,435 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  servers       Server[]
+
+  votes         Vote[]
+  comments      Comment[]
+  resources     Resource[]
+  resourceLikes ResourceLike[]
+  resourceComments ResourceComment[]
+
+  // User model updates
+  posts         Post[]
+  postLikes     PostLike[]
+  postComments  PostComment[]
+  
+  // Curation Relations
+  collections   Collection[]
+  reviews       Review[]
+}
+
+enum UserRole {
+  USER
+  EDITOR
+  ADMIN
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Server {
+  id            String     @id @default(cuid())
+  name          String
+  description   String?    @db.Text
+  host          String
+  port          Int
+  type          ServerType
+  version       String?
+  maxPlayers    Int?
+  onlinePlayers Int?
+  motd          String?    @db.Text
+  icon          String?    @db.Text
+  lastChecked   DateTime?
+  isOnline      Boolean    @default(false)
+  
+  // 커뮤니티 기능 추가
+  banner        String?    // 서버 배너 이미지 URL
+  website       String?    // 공식 웹사이트
+  discord       String?    // 디스코드 초대 링크
+  tags          String[]   @default([]) // 서버 태그 (24시간, 오리지널 등)
+  
+  // Verification flags
+  isVerified    Boolean    @default(false)
+  isOfficial    Boolean    @default(false)
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  userId        String
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes    Vote[]
+  comments Comment[]
+
+  @@index([type])
+  @@index([isOnline])
+  @@index([createdAt])
+}
+
+enum ServerType {
+  JAVA
+  BEDROCK
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  serverId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, userId])
+  @@index([serverId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  serverId  String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
+  @@index([createdAt])
+}
+
+// 자료실 모델
+model Resource {
+  id            String            @id @default(cuid())
+  title         String
+  description   String?           @db.Text
+  category      ResourceCategory
+  subCategory   String?
+  fileUrl       String
+  thumbnail     String?
+  downloadCount Int               @default(0)
+  version       String?
+  tags          String[]          @default([])
+  
+  // Verification & Curation
+  isVerified     Boolean          @default(false)
+  isEditorsChoice Boolean         @default(false)
+  
+  // Smart Filtering
+  supportedVersion String?
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  userId        String
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes    ResourceLike[]
+  comments ResourceComment[]
+  reviews  Review[]
+  collectionItems CollectionItem[]
+
+  @@index([category])
+  @@index([createdAt])
+}
+
+enum ResourceCategory {
+  MOD
+  SKIN
+  MAP
+  PLUGIN
+  TEXTURE
+  DATAPACK
+  ADDON
+  SEED
+  SERVERPACK
+}
+
+model ResourceLike {
+  id         String   @id @default(cuid())
+  resourceId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, userId])
+  @@index([resourceId])
+}
+
+model ResourceComment {
+  id         String   @id @default(cuid())
+  content    String   @db.Text
+  resourceId String
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId])
+  @@index([userId])
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+// 게시판(Forum) 모델
+model Post {
+  id        String       @id @default(cuid())
+  title     String
+  content   String       @db.Text
+  category  PostCategory
+  views     Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  userId    String
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments PostComment[]
+  likes    PostLike[]
+
+  @@index([category])
+  @@index([createdAt])
+}
+
+enum PostCategory {
+  FREE      // 자유게시판
+  QUESTION  // 질문게시판
+  TIP       // 팁과 노하우
+  NOTICE    // 공지사항
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+// 위키(Wiki) 모델
+model WikiDoc {
+  id        String       @id @default(cuid())
+  slug      String       @unique
+  title     String
+  content   String       @db.Text
+  excerpt   String?      @db.Text // 요약문
+  category  WikiCategory
+  sourceUrl String?      // 원문 출처 (마인크래프트 위키 등)
+  published Boolean      @default(true)
+  views     Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([category])
+  @@index([slug])
+}
+
+enum WikiCategory {
+  UPDATE      // 업데이트 노트
+  MECHANIC    // 게임 시스템/메카닉
+  ITEM        // 아이템 도감
+  ENTITY      // 몹/엔티티
+  GUIDE       // 가이드/공략
+  RESOURCE    // 리소스(맵, 모드 등)
+}
+
+// Curation Features
+
+model Collection {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  thumbnail   String?
+  slug        String   @unique
+  isOfficial  Boolean  @default(false)
+  views       Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       CollectionItem[]
+
+  @@index([isOfficial])
+}
+
+model CollectionItem {
+  id           String @id @default(cuid())
+  collectionId String
+  resourceId   String
+  order        Int    @default(0)
+  note         String? // Curator's comment
+  
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  resource     Resource   @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([collectionId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int      // 1-5
+  details   Json?    // { fun: 5, graphics: 4, optimization: 3, story: 2 }
+  content   String?  @db.Text
+  resourceId String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resource  Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, userId])
+  @@index([resourceId])
+}
+// --- Unified Search System (V2) ---
+
+model SearchContent {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Content Polyfills
+  type        ContentType
+  title       String
+  description String   @db.Text
+  thumbnail   String?
+  link        String
+  
+  // --- 3-Metric Scoring System ---
+  // 1. 신뢰도 (Trust): 출처의 권위, 검증 여부
+  trustGrade      Grade   @default(B) 
+  
+  // 2. 정확도 (Accuracy): 최신성, 내용의 정확성, 버전 일치도
+  accuracyGrade   Grade   @default(B)
+  
+  // 3. 관련도 (Relevance): 검색 의도와의 적합성 (Admin Manual Boost)
+  relevanceGrade  Grade   @default(B)
+  
+  // Optional: Detailed feedback mapping (if needed later)
+  adminComment    String?
+  tags            String[]
+  keywords        String[]
+  
+  // Metrics
+  viewCount       Int @default(0)
+  likeCount       Int @default(0)
+  
+  // References
+  serverId    String?
+  resourceId  String?
+  wikiId      String?
+  postId      String?
+  collectionId String?
+
+  isHidden    Boolean @default(false)
+
+  @@index([type])
+  @@index([tags])
+  @@index([trustGrade, accuracyGrade, relevanceGrade])
+}
+
+enum ContentType {
+  SERVER
+  RESOURCE
+  WIKI
+  POST
+  COLLECTION
+}
+
+// Simple Grade System for all metrics (S, A, B, C, F)
+enum Grade {
+  S // Highest (Official/Perfect/Must-See)
+  A // High (Verified/Great/Recommended)
+  B // Normal
+  C // Low (Outdated/Minor)
+  F // Bad (Avoid/Inaccurate)
+}
