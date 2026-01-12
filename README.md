@@ -6,6 +6,11 @@
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?style=for-the-badge&logo=typescript)
 
+## 📖 시작하기
+
+- **⚡ [빠른 시작 (5분)](./QUICKSTART.md)** - 바로 시작하고 싶다면!
+- **📚 [상세 설치 가이드](./INSTALLATION.md)** - 단계별 자세한 설명
+
 ## ✨ 주요 기능
 
 - 🔍 **서버 검색 및 필터링**: 자바/베드락 에디션별로 서버 검색
@@ -46,7 +51,7 @@
 ### 1. 저장소 클론
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Hyunmin0602/community.git
 cd community
 ```
 
