@@ -1,13 +1,17 @@
 {
     "name": "minecraft-community",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "private": true,
     "scripts": {
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
-        "postinstall": "prisma generate"
+        "postinstall": "prisma generate",
+        "version:patch": "npm version patch && git push && git push --tags",
+        "version:minor": "npm version minor && git push && git push --tags",
+        "version:major": "npm version major && git push && git push --tags",
+        "release": "npm run build && npm run version:minor"
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
