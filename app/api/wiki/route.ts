@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
 import * as z from 'zod';
+import { ContentAnalyzer } from '@/lib/content-analyzer';
 
 const wikiSchema = z.object({
     title: z.string().min(1),
@@ -63,6 +64,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // ...
+
     try {
         const json = await req.json();
         const body = wikiSchema.parse(json);
@@ -79,15 +82,46 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const doc = await prisma.wikiDoc.create({
-            data: {
-                ...body,
-                published: true,
-            },
+        // Analyze Content
+        const readability = ContentAnalyzer.calculateReadability(body.content);
+        const length = ContentAnalyzer.calculateLength(body.content);
+
+        // Transactional creation
+        const [doc] = await prisma.$transaction(async (tx) => {
+            const newDoc = await tx.wikiDoc.create({
+                data: {
+                    ...body,
+                    published: true,
+                },
+            });
+
+            // Sync to SearchContent
+            await tx.searchContent.create({
+                data: {
+                    type: 'WIKI',
+                    title: newDoc.title,
+                    description: newDoc.excerpt || newDoc.content.slice(0, 200),
+                    link: `/wiki/${newDoc.slug}`,
+                    wikiId: newDoc.id,
+                    // Metrics
+                    viewCount: 0,
+                    likeCount: 0,
+                    contentLength: length,
+                    readabilityScore: readability,
+                    lastActive: new Date(),
+                    // Quality
+                    trustGrade: 'B',
+                    accuracyGrade: 'B',
+                    relevanceGrade: 'B',
+                }
+            });
+
+            return [newDoc];
         });
 
         return NextResponse.json(doc);
     } catch (error) {
+        //...
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }

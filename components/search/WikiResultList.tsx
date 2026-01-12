@@ -1,8 +1,12 @@
+'use client';
+
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 import { SearchContent } from '@prisma/client';
+import { useSearchLogger } from '@/lib/hooks/useSearchLogger';
 
 export default function WikiResultList({ wikis }: { wikis: SearchContent[] }) {
+    const { logInteraction } = useSearchLogger();
     if (wikis.length === 0) return null;
 
     return (
@@ -15,7 +19,13 @@ export default function WikiResultList({ wikis }: { wikis: SearchContent[] }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {wikis.map((wiki) => (
-                    <Link key={wiki.id} href={wiki.link} className="block group relative p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-green-500/50 dark:hover:border-green-500/50 transition-all hover:-translate-y-1 hover:shadow-xl overflow-hidden">
+                    <Link
+                        key={wiki.id}
+                        href={wiki.link}
+                        onClick={() => logInteraction(wiki.id, 'CLICK')}
+                        data-search-content-id={wiki.id}
+                        className="block group relative p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-green-500/50 dark:hover:border-green-500/50 transition-all hover:-translate-y-1 hover:shadow-xl overflow-hidden"
+                    >
                         {/* Decorative Background Icon */}
                         <BookOpen className="absolute -right-6 -bottom-6 w-32 h-32 text-slate-50 dark:text-zinc-800/50 group-hover:text-green-50 dark:group-hover:text-green-900/10 transition-colors z-0" />
 

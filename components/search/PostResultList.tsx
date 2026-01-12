@@ -1,8 +1,12 @@
+'use client';
+
 import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
 import { SearchContent } from '@prisma/client';
+import { useSearchLogger } from '@/lib/hooks/useSearchLogger';
 
 export default function PostResultList({ posts }: { posts: SearchContent[] }) {
+    const { logInteraction } = useSearchLogger();
     if (posts.length === 0) return null;
 
     return (
@@ -13,7 +17,13 @@ export default function PostResultList({ posts }: { posts: SearchContent[] }) {
             </div>
             <div className="grid grid-cols-1 gap-2">
                 {posts.map((post) => (
-                    <Link key={post.id} href={post.link} className="flex items-start md:items-center justify-between p-5 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-all group">
+                    <Link
+                        key={post.id}
+                        href={post.link}
+                        onClick={() => logInteraction(post.id, 'CLICK')}
+                        data-search-content-id={post.id}
+                        className="flex items-start md:items-center justify-between p-5 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-all group"
+                    >
                         <div className="flex items-start gap-4">
                             <div className="mt-1 p-2 bg-slate-100 dark:bg-zinc-800 rounded-lg text-slate-400 group-hover:bg-white group-hover:text-indigo-500 transition-colors">
                                 <MessageSquare className="h-5 w-5" />

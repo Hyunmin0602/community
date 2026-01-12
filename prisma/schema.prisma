@@ -2,13 +2,15 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pg_trgm]
 }
 
 model User {
@@ -40,6 +42,12 @@ model User {
   // Curation Relations
   collections   Collection[]
   reviews       Review[]
+  
+  // Search Interactions
+  searchInteractions UserSearchInteraction[]
+  
+  // V2 Trust Score
+  trustScore    Int       @default(100)
 }
 
 enum UserRole {
@@ -276,6 +284,11 @@ model PostComment {
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Reply Support
+  parentId  String?
+  parent    PostComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   PostComment[] @relation("CommentReplies")
+
   @@index([postId])
   @@index([userId])
 }
@@ -402,6 +415,22 @@ model SearchContent {
   // Metrics
   viewCount       Int @default(0)
   likeCount       Int @default(0)
+  reportCount     Int @default(0)
+  
+  // Tracking
+  impressions     Int @default(0)
+  clicks          Int @default(0)
+  commentCount    Int @default(0)
+  
+  // --- V2 Metrics (Quality & Engagement) ---
+  contentLength   Int       @default(0) // Text length for info density
+  readabilityScore Float    @default(0) // Automated readability score
+  lastActive      DateTime  @default(now()) // Last meaningful interaction
+  metadata        Json?     // Flexible metadata (version, loader, etc)
+  
+  // --- Imprvmnt 4 & 5: Semantic & Soft Delete ---
+  deletedAt       DateTime? // Soft Delete
+  // embedding    Unsupported("vector")? // Semantic Search (Requires pgvector)
   
   // References
   serverId    String?
@@ -415,6 +444,48 @@ model SearchContent {
   @@index([type])
   @@index([tags])
   @@index([trustGrade, accuracyGrade, relevanceGrade])
+  @@index([deletedAt]) // Soft Delete Index
+
+  interactions UserSearchInteraction[]
+}
+
+// --- Imprvmnt 2: Interaction Logs ---
+model UserSearchInteraction {
+  id              String   @id @default(cuid())
+  userId          String?  // Can be null
+  searchContentId String
+  type            InteractionType
+  dwellTime       Int      @default(0) // Seconds
+  createdAt       DateTime @default(now())
+
+  searchContent   SearchContent @relation(fields: [searchContentId], references: [id], onDelete: Cascade)
+  user            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([searchContentId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// --- Imprvmnt 3: Tag Management ---
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  count     Int      @default(0) // Usage count caching
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([name])
+  @@index([count])
+}
+
+
+
+enum InteractionType {
+  VIEW
+  CLICK
+  LIKE
+  SHARE
+  BOUNCE // < 3s dwell time
 }
 
 enum ContentType {
@@ -432,4 +503,33 @@ enum Grade {
   B // Normal
   C // Low (Outdated/Minor)
   F // Bad (Avoid/Inaccurate)
+}
+
+// Analytics Logs
+model SearchQueryLog {
+  id            String   @id @default(cuid())
+  query         String
+  userId        String?  // Optional (Logged out users)
+  resultCount   Int
+  clickedItemId String?  // If they clicked something immediately, we might track it later
+  ipHash        String?  // For anonymous stats
+  createdAt     DateTime @default(now())
+  
+  @@index([query])
+  @@index([createdAt])
+}
+
+// --- Keywords for Search & Auto-complete ---
+model SearchKeyword {
+  id         String   @id @default(cuid())
+  term       String   @unique
+  category   String?  // GENRE, SLANG, ITEM, SERVER_TYPE
+  synonyms   String[] // ["Minefarm", "마팜"]
+  popularity Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([term])
+  @@index([popularity])
 }

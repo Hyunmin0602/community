@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { z } from 'zod';
+import { ContentAnalyzer } from '@/lib/content-analyzer';
 
 const resourceSchema = z.object({
     title: z.string().min(1, '제목을 입력해주세요'),
@@ -79,12 +80,53 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const validatedData = resourceSchema.parse(body);
 
-        const resource = await prisma.resource.create({
-            data: {
-                ...validatedData,
-                userId: session.user.id,
-                thumbnail: validatedData.thumbnail || null,
-            },
+        // Analyze Content
+        const description = validatedData.description || '';
+        const readability = ContentAnalyzer.calculateReadability(description);
+        const length = ContentAnalyzer.calculateLength(description);
+
+        // Transactional creation
+        const [resource] = await prisma.$transaction(async (tx) => {
+            const newResource = await tx.resource.create({
+                data: {
+                    ...validatedData,
+                    userId: session.user.id,
+                    thumbnail: validatedData.thumbnail || null,
+                },
+            });
+
+            // Sync to SearchContent
+            await tx.searchContent.create({
+                data: {
+                    type: 'RESOURCE',
+                    title: newResource.title,
+                    description: newResource.description || '',
+                    tags: newResource.tags,
+                    thumbnail: newResource.thumbnail,
+                    link: `/resources/${newResource.id}`,
+                    resourceId: newResource.id,
+                    // Metrics
+                    viewCount: 0,
+                    likeCount: 0,
+                    contentLength: length,
+                    readabilityScore: readability,
+                    lastActive: new Date(),
+                }
+            });
+            //...
+
+            // Sync Tags to Tag model (Upsert)
+            if (newResource.tags && newResource.tags.length > 0) {
+                for (const tagName of newResource.tags) {
+                    await tx.tag.upsert({
+                        where: { name: tagName },
+                        update: { count: { increment: 1 } },
+                        create: { name: tagName, count: 1 }
+                    });
+                }
+            }
+
+            return [newResource];
         });
 
         return NextResponse.json(resource, { status: 201 });

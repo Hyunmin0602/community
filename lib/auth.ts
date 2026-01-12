@@ -5,6 +5,7 @@ import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
+    debug: true,
     adapter: PrismaAdapter(prisma),
     providers: [
         CredentialsProvider({
@@ -47,17 +48,27 @@ export const authOptions: NextAuthOptions = {
     ],
     pages: {
         signIn: '/auth/signin',
-        signOut: '/auth/signout',
         error: '/auth/error',
     },
     session: {
         strategy: 'jwt',
     },
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
             if (user) {
                 token.id = user.id;
                 token.role = (user as any).role || 'USER';
+            }
+
+            // On subsequent calls, fetch fresh role from DB to handle permission changes
+            if (!user && token.email) {
+                const freshUser = await prisma.user.findUnique({
+                    where: { email: token.email as string },
+                    select: { role: true }
+                });
+                if (freshUser) {
+                    token.role = freshUser.role;
+                }
             }
             return token;
         },

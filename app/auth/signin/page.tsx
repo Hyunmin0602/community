@@ -32,11 +32,15 @@ function SignInContent() {
                 password: formData.password,
             });
 
+            console.log('SignIn Result:', result); // Debug info
+
             if (result?.error) {
+                console.error('Login Error:', result.error);
                 setError(result.error);
             } else {
-                router.push(callbackUrl);
-                router.refresh();
+                console.log('Login Success! Redirecting to:', callbackUrl);
+                // Force full reload to ensure session cookie is recognized by server components
+                window.location.href = callbackUrl;
             }
         } catch (err) {
             setError('로그인에 실패했습니다');

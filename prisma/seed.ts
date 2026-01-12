@@ -35,11 +35,64 @@ async function main() {
 
                 // Initial optimization
                 tags: server.tags,
-                viewCount: 0, // Server doesn't have view count yet, use 0
+                viewCount: 0,
+                likeCount: 0, // Server doesn't have native likes suitable for this yet, or map from votes
+                reportCount: 0,
+                impressions: 100,
+                clicks: 25,
+                commentCount: 0,
             }
         });
     }
     console.log(`✅ Migrated ${servers.length} servers.`);
+
+    // --- ADDED FOR SEARCH TEST ---
+    const SAMPLE_RESOURCES = [
+        {
+            title: '테스트자료1 (Test Mod)',
+            description: '이것은 테스트용 모드 자료입니다. 검색 테스트를 위해 추가되었습니다.',
+            tags: ['모드', 'Mod', '테스트'],
+            trustGrade: Grade.A, // Using Grade enum
+            viewCount: 120,
+            thumbnail: 'https://api.dicebear.com/7.x/shapes/svg?seed=TM',
+        },
+        {
+            title: '옵티파인 최신 버전 (Optifine)',
+            description: '마인크래프트 최적화 필수 모드인 옵티파인입니다.',
+            tags: ['모드', '최적화', 'Optifine'],
+            trustGrade: Grade.S, // Using Grade enum
+            viewCount: 5000,
+            thumbnail: 'https://api.dicebear.com/7.x/shapes/svg?seed=OPT',
+        },
+    ];
+
+    console.log('📦 Migrating Sample Mod Resources...');
+    for (const res of SAMPLE_RESOURCES) {
+        await prisma.searchContent.create({
+            data: {
+                type: ContentType.RESOURCE,
+                title: res.title,
+                description: res.description,
+                thumbnail: res.thumbnail,
+                link: `/resources/test-${Math.floor(Math.random() * 1000)}`,
+                resourceId: 'dummy-mod-' + Math.floor(Math.random() * 10000), // Dummy Resource ID
+
+                trustGrade: res.trustGrade,
+                accuracyGrade: Grade.B,
+                relevanceGrade: Grade.B,
+
+                tags: res.tags,
+                keywords: res.tags,
+                viewCount: res.viewCount,
+                likeCount: 0,
+                reportCount: 0,
+                impressions: res.viewCount * 2,
+                clicks: res.viewCount,
+                commentCount: 0,
+            }
+        });
+    }
+    // ----------------------------
 
     // 3. Migrate Resources
     console.log('📦 Migrating Resources...');
@@ -63,7 +116,12 @@ async function main() {
                 relevanceGrade: Grade.B,
 
                 tags: res.tags,
-                viewCount: res.downloadCount, // Use download count for views proxy
+                viewCount: res.downloadCount,
+                likeCount: 0, // Should fetch real likes if possible, but simplify for seed
+                reportCount: 0,
+                impressions: res.downloadCount * 3,
+                clicks: res.downloadCount,
+                commentCount: 0,
             }
         });
     }
@@ -113,7 +171,7 @@ async function main() {
     const wikiCategories = Object.keys(wikiData);
     for (const cat of wikiCategories) {
         let i = 0;
-        for (const item of wikiData[cat]) {
+        for (const item of wikiData[cat] as any) {
             i++;
             try {
                 const slug = `${cat.toLowerCase()}-doc-${i}`;
@@ -147,8 +205,13 @@ async function main() {
                         wikiId: wiki.id,
                         trustGrade: Grade.A,
                         relevanceGrade: Grade.A,
-                        viewCount: wiki.views,
                         tags: [cat, '마인크래프트', item.title.split(' ')[0]],
+                        viewCount: wiki.views,
+                        likeCount: 0,
+                        reportCount: 0,
+                        impressions: wiki.views * 2,
+                        clicks: Math.floor(wiki.views * 0.6),
+                        commentCount: 0,
                         createdAt: wiki.createdAt, // Sync creation date
                     }
                 });
@@ -196,7 +259,7 @@ async function main() {
     const user = await prisma.user.findFirst();
     if (user) {
         for (const cat of postCategories) {
-            for (const item of postData[cat]) {
+            for (const item of postData[cat] as any) {
                 const title = `[${cat}] ${item.title}`;
 
                 // Random date within last 30 days
@@ -237,8 +300,12 @@ async function main() {
                         trustGrade: trust,
                         relevanceGrade: relevance,
                         viewCount: post.views,
-                        tags: tags,
-                        createdAt: post.createdAt, // Sync creation date
+                        likeCount: 0,
+                        reportCount: 0,
+                        impressions: post.views * 2, // Dummy: impressions usually > views
+                        clicks: Math.floor(post.views * 0.4), // Dummy 40% CTR
+                        commentCount: 0,
+                        createdAt: post.createdAt,
                     }
                 });
             }
@@ -246,8 +313,26 @@ async function main() {
     }
 
     console.log(`✅ Added diverse dummy wikis and posts.`);
-}
 
+    // 5. Create Dummy Search Logs
+    console.log('📝 Creating Dummy Search Logs...');
+    const queries = ['마인크래프트 서버', '생존 서버 추천', '건축 강좌', '플러그인 다운로드', 'PVP 잘하는 법', '레드스톤', '무료 서버', '오류 해결'];
+
+    for (const query of queries) {
+        // Random count between 5 and 50
+        const count = Math.floor(Math.random() * 45) + 5;
+        for (let i = 0; i < count; i++) {
+            await prisma.searchQueryLog.create({
+                data: {
+                    query,
+                    resultCount: Math.floor(Math.random() * 20),
+                    createdAt: new Date(Date.now() - Math.floor(Math.random() * 1000000000)), // Random past time
+                }
+            });
+        }
+    }
+    console.log('✅ Added dummy search logs.');
+}
 
 main()
     .catch((e) => {

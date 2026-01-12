@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import RichTextEditor from '@/components/RichTextEditor';
 import { RESOURCE_CATEGORIES, RESOURCE_TAGS } from '@/lib/constants';
+import TagInput from '@/components/TagInput';
 
 interface ResourceFormProps {
     resourceId: string;
@@ -165,21 +166,12 @@ export default function ResourceForm({ resourceId, initialData }: ResourceFormPr
 
             <div>
                 <label className="label block mb-2">태그</label>
-                <div className="flex flex-wrap gap-2">
-                    {RESOURCE_TAGS.map((tag) => (
-                        <button
-                            key={tag}
-                            type="button"
-                            onClick={() => toggleTag(tag)}
-                            className={`px-3 py-1 rounded-full text-sm transition-colors ${selectedTags.includes(tag)
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted hover:bg-muted/80'
-                                }`}
-                        >
-                            {tag}
-                        </button>
-                    ))}
-                </div>
+                <TagInput
+                    selectedTags={selectedTags}
+                    onChange={setSelectedTags}
+                    suggestions={RESOURCE_TAGS} // Use the constant as fallback suggestions
+                    placeholder="태그를 입력하고 엔터를 누르세요..."
+                />
             </div>
 
             <div className="flex gap-3">

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import * as z from 'zod';
+import { ContentAnalyzer } from '@/lib/content-analyzer';
 
 const postSchema = z.object({
     title: z.string().min(1, 'Title is required').max(100),
@@ -87,28 +88,55 @@ export async function POST(req: NextRequest) {
         const json = await req.json();
         const body = postSchema.parse(json);
 
-        // 공지사항(NOTICE) 권한 체크 로직이 필요하다면 여기에 추가
-        // 예: if (body.category === 'NOTICE' && session.user.role !== 'ADMIN') ...
+        // Analyze Content
+        const readability = ContentAnalyzer.calculateReadability(body.content);
+        const length = ContentAnalyzer.calculateLength(body.content);
 
-        const post = await prisma.post.create({
-            data: {
-                title: body.title,
-                content: body.content,
-                category: body.category,
-                userId: session.user.id,
-            },
-            include: {
-                user: {
-                    select: {
-                        name: true,
-                        image: true
+        // Transactional creation of Post and SearchContent
+        const [post] = await prisma.$transaction(async (tx) => {
+            const newPost = await tx.post.create({
+                data: {
+                    title: body.title,
+                    content: body.content,
+                    category: body.category,
+                    userId: session.user.id,
+                },
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                            image: true
+                        }
                     }
                 }
-            }
+            });
+
+            // Create SearchContent within the same transaction
+            await tx.searchContent.create({
+                data: {
+                    type: 'POST',
+                    title: newPost.title,
+                    description: newPost.content.slice(0, 200), // Summary
+                    link: `/forum/posts/${newPost.id}`,
+                    postId: newPost.id,
+                    viewCount: 0,
+                    likeCount: 0,
+                    contentLength: length,
+                    readabilityScore: readability,
+                    lastActive: new Date(),
+                    // Default values for grades
+                    trustGrade: 'B',
+                    accuracyGrade: 'B',
+                    relevanceGrade: 'B',
+                }
+            });
+
+            return [newPost];
         });
 
         return NextResponse.json(post);
     } catch (error) {
+        //...
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }

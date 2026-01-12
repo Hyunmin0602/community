@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { z } from 'zod';
+import { ContentAnalyzer } from '@/lib/content-analyzer';
 
 const serverSchema = z.object({
     name: z.string().min(1, '서버 이름을 입력해주세요'),
@@ -66,35 +67,49 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const validatedData = serverSchema.parse(body);
 
-        const server = await prisma.server.create({
-            data: {
-                ...validatedData,
-                userId: session.user.id,
-                // 빈 문자열을 null로 변환
-                banner: validatedData.banner || null,
-                website: validatedData.website || null,
-                discord: validatedData.discord || null,
-            },
-        });
+        // Analyze Content
+        const description = validatedData.description || '';
+        const readability = ContentAnalyzer.calculateReadability(description);
+        const length = ContentAnalyzer.calculateLength(description);
 
-        // SearchContent 자동 동기화
-        await prisma.searchContent.create({
-            data: {
-                type: 'SERVER',
-                title: server.name,
-                description: server.description || '',
-                thumbnail: server.icon,
-                link: `/servers/${server.id}`,
-                serverId: server.id,
+        // Transactional creation
+        const [server] = await prisma.$transaction(async (tx) => {
+            const newServer = await tx.server.create({
+                data: {
+                    ...validatedData,
+                    userId: session.user.id,
+                    banner: validatedData.banner || null,
+                    website: validatedData.website || null,
+                    discord: validatedData.discord || null,
+                },
+            });
 
-                // 기본 가중치
-                trustGrade: 'B',
-                accuracyGrade: 'B',
-                relevanceGrade: 'B',
+            // SearchContent 자동 동기화
+            await tx.searchContent.create({
+                data: {
+                    type: 'SERVER',
+                    title: newServer.name,
+                    description: newServer.description || '',
+                    thumbnail: newServer.icon,
+                    link: `/servers/${newServer.id}`,
+                    serverId: newServer.id,
 
-                tags: server.tags,
-                viewCount: 0,
-            }
+                    // 기본 가중치
+                    trustGrade: 'B',
+                    accuracyGrade: 'B',
+                    relevanceGrade: 'B',
+
+                    tags: newServer.tags,
+                    viewCount: 0,
+                    likeCount: 0,
+                    // Metrics
+                    contentLength: length,
+                    readabilityScore: readability,
+                    lastActive: new Date(),
+                }
+            });
+
+            return [newServer];
         });
 
         return NextResponse.json(server, { status: 201 });
