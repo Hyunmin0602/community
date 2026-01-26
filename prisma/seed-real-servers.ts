@@ -128,7 +128,7 @@ async function main() {
         });
 
         // Determine Grades
-        let trust = Grade.B;
+        let trust: Grade = Grade.B;
         if (data.isOfficial) trust = Grade.S;
         else if (data.isVerified) trust = Grade.A;
 
@@ -148,9 +148,9 @@ async function main() {
                 tags: server.tags,
                 keywords: server.tags, // Add tags as keywords too
 
-                viewCount: server.onlinePlayers * 10,
-                impressions: server.onlinePlayers * 50,
-                clicks: server.onlinePlayers * 5,
+                viewCount: (server.onlinePlayers || 0) * 10,
+                impressions: (server.onlinePlayers || 0) * 50,
+                clicks: (server.onlinePlayers || 0) * 5,
 
                 isHidden: false,
                 serverId: server.id,
@@ -171,9 +171,9 @@ async function main() {
                 tags: server.tags,
                 keywords: server.tags,
 
-                viewCount: server.onlinePlayers * 10,
-                impressions: server.onlinePlayers * 50,
-                clicks: server.onlinePlayers * 5,
+                viewCount: (server.onlinePlayers || 0) * 10,
+                impressions: (server.onlinePlayers || 0) * 50,
+                clicks: (server.onlinePlayers || 0) * 5,
 
                 isHidden: false,
             }

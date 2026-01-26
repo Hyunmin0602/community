@@ -413,7 +413,6 @@ export default function SkinCanvas({ imageData, onImageChange, editable = false 
                         className={editable ? 'cursor-crosshair' : ''}
                         style={{
                             imageRendering: 'pixelated',
-                            imageRendering: 'crisp-edges',
                         }}
                     />
                     <canvas ref={canvasRef} className="hidden" />
