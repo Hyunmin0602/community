@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import nextDynamic from 'next/dynamic';
 const RichTextEditor = nextDynamic(() => import('@/components/RichTextEditor'), { ssr: false });
-import { ArrowLeft, ExternalLink, Calendar } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -54,6 +54,10 @@ export default async function WikiDetailPage({ params }: PageProps) {
                         <span className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
                             {new Date(doc.createdAt).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <Eye className="h-4 w-4" />
+                            {doc.views}회
                         </span>
                         {doc.sourceUrl && (
                             <a

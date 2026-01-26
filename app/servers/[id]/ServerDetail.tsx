@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Server, User, Comment as CommentType } from '@prisma/client';
-import { Heart, Users, Copy, RefreshCw, MessageCircle, Clock, Globe, MessageSquare, Edit } from 'lucide-react';
+import { Heart, Users, Copy, RefreshCw, MessageCircle, Clock, Globe, MessageSquare, Edit, ShieldCheck } from 'lucide-react';
 import { getServerTypeLabel, formatDate } from '@/lib/utils';
 import Image from 'next/image';
 
@@ -156,6 +156,18 @@ export default function ServerDetail({ server: initialServer }: ServerDetailProp
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                                 <h1 className="text-3xl font-bold">{server.name}</h1>
+                                {server.isOfficial && (
+                                    <span className="badge bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1">
+                                        <ShieldCheck className="h-3 w-3" />
+                                        오피셜
+                                    </span>
+                                )}
+                                {server.isVerified && (
+                                    <span className="badge bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 flex items-center gap-1">
+                                        <ShieldCheck className="h-3 w-3" />
+                                        인증됨
+                                    </span>
+                                )}
                                 {session?.user?.email === server.user.email && (
                                     <button
                                         onClick={() => router.push(`/servers/${server.id}/edit`)}

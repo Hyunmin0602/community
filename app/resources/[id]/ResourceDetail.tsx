@@ -219,6 +219,10 @@ export default function ResourceDetail({ resource: initialResource }: ResourceDe
                                 <p className="text-lg font-bold">{resource.version || 'All'}</p>
                             </div>
                             <div className="text-center p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+                                <p className="text-xs text-muted-foreground font-medium mb-1">호환 버전</p>
+                                <p className="text-lg font-bold">{resource.supportedVersion || 'All'}</p>
+                            </div>
+                            <div className="text-center p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
                                 <p className="text-xs text-muted-foreground font-medium mb-1">라이선스</p>
                                 <p className="text-lg font-bold">Free</p>
                             </div>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
-import { Moon, Sun, Menu, Server, Plus, LogOut, User, LogIn, Shield } from 'lucide-react';
+import { Moon, Sun, Menu, Server, Plus, LogOut, User, LogIn, Shield, Sparkles } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
@@ -121,6 +121,11 @@ export default function Header() {
                     <Link href="/wiki" className="px-4 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md hover:bg-muted">
                         위키
                     </Link>
+
+                    <Link href="/skin-generator" className="px-4 py-2 text-sm font-medium transition-colors hover:text-primary rounded-md hover:bg-muted flex items-center gap-1.5 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-200 dark:border-purple-800">
+                        <Sparkles className="h-4 w-4 text-purple-500" />
+                        <span className="text-purple-600 dark:text-purple-400">AI 스킨</span>
+                    </Link>
                     {session ? (
                         <>
                             <div className="flex items-center space-x-3">
@@ -222,6 +227,14 @@ export default function Header() {
                             onClick={() => setMobileMenuOpen(false)}
                         >
                             위키
+                        </Link>
+                        <Link
+                            href="/skin-generator"
+                            className="block py-2 text-sm font-medium hover:text-primary flex items-center gap-1.5"
+                            onClick={() => setMobileMenuOpen(false)}
+                        >
+                            <Sparkles className="h-4 w-4 text-purple-500" />
+                            <span className="text-purple-600 dark:text-purple-400">AI 스킨 생성기</span>
                         </Link>
                         {session ? (
                             <>
